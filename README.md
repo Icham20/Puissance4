@@ -3,8 +3,8 @@
 ## ⚙️ Compilation
 
 ```bash
-make          # Compile le serveur (génère l'exécutable ./serveur_puissance4)
-make client   # Compile le client de test (génère l'exécutable ./client)
+make          # Compile le serveur (génère l'exécutable ./serveur_puissance4) + à faire dans le terminal serveur
+make client   # Compile le client de test (génère l'exécutable ./client) + à faire dans le terminal client
 make clean    # Supprime les exécutables générés
 ```
 ## 🚀 Exécution
@@ -12,7 +12,7 @@ make clean    # Supprime les exécutables générés
 ### Lancer le serveur
 
 ```bash
-./serveur_puissance4 -p 7000 (ici le port choisi est 7000 mais on peut mettre ce que l'on veut)
+./server_puissance4 -p 7000 (ici le port choisi est 7000 mais on peut mettre ce que l'on veut)
 ```
 
 ### Lancer un client (dans un autre terminal)
