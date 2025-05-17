@@ -3,7 +3,7 @@
 ## ⚙️ Compilation
 
 ```bash
-make          # Compile le serveur (génère l'exécutable ./serveur_puissance4) + à faire dans le terminal serveur
+make          # Compile le serveur (génère l'exécutable ./server_puissance4) + à faire dans le terminal serveur
 make client   # Compile le client de test (génère l'exécutable ./client) + à faire dans le terminal client
 make clean    # Supprime les exécutables générés
 ```
