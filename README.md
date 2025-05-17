@@ -12,7 +12,7 @@ make clean    # Supprime les exécutables générés
 ### Lancer le serveur
 
 ```bash
-./server_puissance4 -p 7000 (ici le port choisi est 7000 mais on peut mettre ce que l'on veut)
+./server_puissance4 -p 7000 (ici le port choisi est 7000)
 ```
 
 ### Lancer un client (dans un autre terminal)
