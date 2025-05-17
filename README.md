@@ -1,5 +1,3 @@
-# Puissance4
-
 # 💡 Projet Serveur Puissance 4 — Jalon 1
 
 Ce projet implémente un serveur TCP multiclient en C, basé sur une architecture modulaire.  
