@@ -18,5 +18,5 @@ make clean    # Supprime les exécutables générés
 ### Lancer un client (dans un autre terminal)
 
 ```bash
-./client 127.0.0.1 7000 (ici le port choisi est 7000 mais on peut mettre ce que l'on veut)
+./client 127.0.0.1 7000 (ici le port choisi est 7000), (127.0.0.1 = Adresse locale du serveur)
 ```
