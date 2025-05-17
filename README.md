@@ -1,4 +1,4 @@
-# 💡 Projet Serveur Puissance 4 
+# 💡 Projet Puissance 4 
 
 ## ⚙️ Compilation
 
