@@ -1,4 +1,4 @@
-# 💡 Projet Serveur Puissance 4 — Jalon 1
+# 💡 Projet Serveur Puissance 4 
 
 ## ⚙️ Compilation
 
@@ -6,7 +6,7 @@
 make          # Compile le serveur (génère l'exécutable ./serveur_puissance4)
 make client   # Compile le client de test (génère l'exécutable ./client)
 make clean    # Supprime les exécutables générés
-
+```
 ## 🚀 Exécution
 
 ### Lancer le serveur
