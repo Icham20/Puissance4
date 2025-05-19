@@ -55,7 +55,19 @@ int main(int argc, char *argv[]) {
                     supprimer_client(&user_list, client_fd); // Déconnexion client
                 } else {
                     buffer[n] = '\0';
-                    printf("Message reçu de %d : %s\n", client_fd, buffer); // Affichage brut
+
+                    // Trouver le joueur correspondant au fd
+                    struct user *tmp = user_list;
+                    while (tmp && tmp->socket != client_fd) {
+                        tmp = tmp->next;
+                    }
+
+                    if (tmp) {
+                        printf("Joueur n°%d, (fd = %d)\n", tmp->numero, tmp->socket);
+                        printf("Message reçu du Joueur n°%d : %s\n", tmp->numero, buffer);
+                    } else {
+                        printf("Message reçu d'un client inconnu (fd = %d) : %s\n", client_fd, buffer);
+                    }
                 }
             }
         }

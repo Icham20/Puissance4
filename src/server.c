@@ -1,9 +1,12 @@
-#include <stdio.h>
+#include <stdio.h> 
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include "../include/server.h"
+
+// Compteur global pour numéroter les joueurs
+static int compteur_joueur = 1;
 
 // Initialisation du socket serveur
 int init_server_socket(int port) {
@@ -50,10 +53,11 @@ void ajouter_client(struct user **list, int clientSocket, struct sockaddr_in *ad
 
     nouveau->socket = clientSocket;
     nouveau->sockin = *addr;
+    nouveau->numero = compteur_joueur++;  // Numérotation du joueur
     nouveau->next = *list;
     *list = nouveau;
 
-    printf("Nouveau client connecté (fd = %d)\n", clientSocket);
+    printf("[Joueur %d] connecté (fd = %d)\n", nouveau->numero, clientSocket);
 }
 
 // Supprime un client de la liste chaînée
@@ -64,10 +68,10 @@ void supprimer_client(struct user **list, int client_fd) {
             if (prev) prev->next = cur->next;
             else *list = cur->next;
 
+            printf("[Joueur %d] déconnecté (fd = %d)\n", cur->numero, client_fd);
+
             close(cur->socket);
             free(cur);
-
-            printf("Client déconnecté (fd = %d)\n", client_fd);
             return;
         }
         prev = cur;

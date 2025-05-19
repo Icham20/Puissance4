@@ -10,6 +10,7 @@
 struct user {
     int socket;                    // File descriptor du client
     struct sockaddr_in sockin;    // Adresse du client
+    int numero;                    // Numéro du joueur (ex : 1, 2, 3...)
     struct user *next;            // Pointeur vers le client suivant dans la liste chaînée
 };
 

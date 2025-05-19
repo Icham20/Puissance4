@@ -20,3 +20,10 @@ make clean    # Supprime les exécutables générés
 ```bash
 ./client 127.0.0.1 7000 (ici le port choisi est 7000), (127.0.0.1 = Adresse locale du serveur)
 ```
+### SSH
+```bash
+ssh icham@192.168.200.13 (pour se connecter)
+scp -r nomdudossier icham@192.168.200.13:   (pour copier le dossier)
+password : Puissance4
+Dans le terminal windows (ubuntu) : nc 192.168.200.13 7500
+```
