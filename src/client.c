@@ -1,4 +1,4 @@
-// fichier test Client
+// fichier client.c
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,12 +40,26 @@ int main(int argc, char *argv[]) {
     printf("Connecté au serveur %s:%d\n", ip, port);
 
     char buffer[LG_MESSAGE];
+    char response[LG_MESSAGE];
     while (1) {
         printf("Vous : ");
         if (!fgets(buffer, sizeof(buffer), stdin)) break;
 
         if (send(sock, buffer, strlen(buffer), 0) < 0) {
             perror("send");
+            break;
+        }
+
+        // Réponse du serveur
+        int n = recv(sock, response, sizeof(response) - 1, 0);
+        if (n > 0) {
+            response[n] = '\0';
+            printf("📩 Réponse : %s", response);
+        } else if (n == 0) {
+            printf("🔌 Serveur déconnecté.\n");
+            break;
+        } else {
+            perror("recv");
             break;
         }
     }

@@ -8,12 +8,21 @@
 // Compteur global pour numéroter les joueurs
 static int compteur_joueur = 1;
 
+// Compte les clients connectés avec pseudo ≠ "inconnu"
+int joueurs_actifs(struct user *list) {
+    int count = 0;
+    while (list) {
+        if (strcmp(list->pseudo, "inconnu") != 0) count++;
+        list = list->next;
+    }
+    return count;
+}
+
 // Initialisation du socket serveur
 int init_server_socket(int port) {
     int socketEcoute;
     struct sockaddr_in pointDeRencontreLocal;
 
-    // Création du socket TCP
     socketEcoute = socket(PF_INET, SOCK_STREAM, 0);
     if (socketEcoute < 0) {
         perror("socket");
@@ -26,13 +35,11 @@ int init_server_socket(int port) {
     pointDeRencontreLocal.sin_addr.s_addr = htonl(INADDR_ANY);
     pointDeRencontreLocal.sin_port = htons(port);
 
-    // Attachement à l'adresse locale
     if (bind(socketEcoute, (struct sockaddr *)&pointDeRencontreLocal, longueurAdresse) < 0) {
         perror("bind");
         exit(EXIT_FAILURE);
     }
 
-    // Mise en écoute
     if (listen(socketEcoute, 5) < 0) {
         perror("listen");
         exit(EXIT_FAILURE);
@@ -42,8 +49,20 @@ int init_server_socket(int port) {
     return socketEcoute;
 }
 
-// Ajoute un client à la liste chaînée
 void ajouter_client(struct user **list, int clientSocket, struct sockaddr_in *addr) {
+    // Refuser la connexion si 2 clients déjà connectés
+    int count = 0;
+    struct user *tmp = *list;
+    while (tmp) {
+        count++;
+        tmp = tmp->next;
+    }
+    if (count >= 2) {
+        dprintf(clientSocket, "Connexion refusée : 2 joueurs déjà connectés.\n");
+        close(clientSocket);
+        return;
+    }
+
     struct user *nouveau = malloc(sizeof(struct user));
     if (!nouveau) {
         perror("malloc");
@@ -53,23 +72,24 @@ void ajouter_client(struct user **list, int clientSocket, struct sockaddr_in *ad
 
     nouveau->socket = clientSocket;
     nouveau->sockin = *addr;
-    nouveau->numero = compteur_joueur++;  // Numérotation du joueur
+    nouveau->numero = compteur_joueur++;
+    nouveau->etat = ETAT_ATTENTE;
+    nouveau->estPret = 0;
+    strcpy(nouveau->pseudo, "inconnu");
+    nouveau->symbole = (nouveau->numero == 1) ? 'X' : 'O';
     nouveau->next = *list;
     *list = nouveau;
 
-    printf("[Joueur %d] connecté (fd = %d)\n", nouveau->numero, clientSocket);
+    printf("[Joueur %d] connecté (fd = %d) - symbole: %c\n", nouveau->numero, clientSocket, nouveau->symbole);
 }
 
-// Supprime un client de la liste chaînée
 void supprimer_client(struct user **list, int client_fd) {
     struct user *cur = *list, *prev = NULL;
     while (cur != NULL) {
         if (cur->socket == client_fd) {
             if (prev) prev->next = cur->next;
             else *list = cur->next;
-
             printf("[Joueur %d] déconnecté (fd = %d)\n", cur->numero, client_fd);
-
             close(cur->socket);
             free(cur);
             return;
@@ -79,7 +99,6 @@ void supprimer_client(struct user **list, int client_fd) {
     }
 }
 
-// Gère une nouvelle connexion entrante
 void handle_new_connection(int server_socket, struct user **user_list) {
     struct sockaddr_in clientAddr;
     socklen_t addrlen = sizeof(clientAddr);

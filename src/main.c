@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <poll.h>
 #include "../include/server.h"
+#include "../include/protocol.h"
 
 int main(int argc, char *argv[]) {
     int port = DEFAULT_PORT;
@@ -55,6 +56,7 @@ int main(int argc, char *argv[]) {
                     supprimer_client(&user_list, client_fd); // Déconnexion client
                 } else {
                     buffer[n] = '\0';
+                    buffer[strcspn(buffer, "\r\n")] = '\0'; // Nettoyage des fins de ligne
 
                     // Trouver le joueur correspondant au fd
                     struct user *tmp = user_list;
@@ -63,10 +65,27 @@ int main(int argc, char *argv[]) {
                     }
 
                     if (tmp) {
-                        printf("Joueur n°%d, (fd = %d)\n", tmp->numero, tmp->socket);
-                        printf("Message reçu du Joueur n°%d : %s\n", tmp->numero, buffer);
+                        printf("[REÇU] [%s | fd=%d | symbole=%c | état=%d] : %s\n",
+                               tmp->pseudo, tmp->socket, tmp->symbole, tmp->etat, buffer);
+
+                        // /login <pseudo>
+                        if (strncmp(buffer, "/login", 6) == 0) {
+                            char pseudo[32];
+                            if (sscanf(buffer, "/login %31s", pseudo) == 1) {
+                                handle_login(tmp, pseudo, user_list);
+                            } else {
+                                dprintf(tmp->socket, "/ret LOGIN:105\n");
+                            }
+                        }
+
+                        // /ready
+                        else if (strncmp(buffer, "/ready", 6) == 0) {
+                            handle_ready(tmp, user_list);
+                        }
+
+                        // autres commandes à venir...
                     } else {
-                        printf("Message reçu d'un client inconnu (fd = %d) : %s\n", client_fd, buffer);
+                        printf("[AVERTISSEMENT] Client inconnu (fd = %d) : %s\n", client_fd, buffer);
                     }
                 }
             }
