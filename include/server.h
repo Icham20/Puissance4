@@ -8,23 +8,26 @@
 
 // États possibles du joueur
 #define ETAT_ATTENTE 0
-#define ETAT_JEU 1
+#define ETAT_JEU     1
 #define ETAT_TERMINE 2
 
 // Structure d'un utilisateur connecté (client + joueur)
-struct user
-{
-    int socket;                // File descriptor du client
-    struct sockaddr_in sockin; // Adresse du client
-    int numero;                // Numéro du joueur (ex : 1, 2)
-    char pseudo[32];           // Pseudo du joueur
-    char symbole;              // 'X' ou 'O'
-    int estPret;               // 1 si le joueur est prêt
-    int etat;                  // État du joueur (attente, en jeu, terminé)
-    struct user *next;         // Pointeur vers le client suivant
+struct user {
+    int socket;                   // Descripteur du socket client
+    struct sockaddr_in sockin;   // Adresse du client
+    int numero;                  // Numéro du joueur (1 ou 2)
+    char pseudo[32];             // Pseudo du joueur
+    char symbole;                // 'X' ou 'O'
+    int etat;                    // État du joueur (attente, jeu, terminé)
+    int estSonTour;             // 1 si c'est son tour de jouer
+    struct user *next;          // Pointeur vers le joueur suivant
 };
 
-// Fonctions déclarées pour server.c
+// Dimensions de la grille
+extern int largeur;
+extern int hauteur;
+
+// Fonctions serveur
 int init_server_socket(int port);
 void handle_new_connection(int server_socket, struct user **user_list);
 void supprimer_client(struct user **list, int client_fd);

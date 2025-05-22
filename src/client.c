@@ -4,8 +4,22 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
 
-#define LG_MESSAGE 256
+#define LG_MESSAGE 512
+
+void afficher_reponses(int sock) {
+    char response[LG_MESSAGE];
+    int n = recv(sock, response, sizeof(response) - 1, MSG_DONTWAIT);
+    if (n > 0) {
+        response[n] = '\0';
+        char *ligne = strtok(response, "\n");
+        while (ligne) {
+            printf("📩 Réponse : %s\n", ligne);
+            ligne = strtok(NULL, "\n");
+        }
+    }
+}
 
 int main(int argc, char *argv[]) {
     if (argc != 3) {
@@ -39,8 +53,12 @@ int main(int argc, char *argv[]) {
 
     printf("Connecté au serveur %s:%d\n", ip, port);
 
+    // Messages initiaux (ex : /info ID, /login)
+    usleep(100 * 1000);  // Petite pause pour laisser le serveur répondre
+    afficher_reponses(sock);
+
     char buffer[LG_MESSAGE];
-    char response[LG_MESSAGE];
+
     while (1) {
         printf("Vous : ");
         if (!fgets(buffer, sizeof(buffer), stdin)) break;
@@ -50,18 +68,9 @@ int main(int argc, char *argv[]) {
             break;
         }
 
-        // Réponse du serveur
-        int n = recv(sock, response, sizeof(response) - 1, 0);
-        if (n > 0) {
-            response[n] = '\0';
-            printf("📩 Réponse : %s", response);
-        } else if (n == 0) {
-            printf("🔌 Serveur déconnecté.\n");
-            break;
-        } else {
-            perror("recv");
-            break;
-        }
+        usleep(100 * 1000);  // Laisse le temps au serveur d’envoyer toutes les lignes
+
+        afficher_reponses(sock);
     }
 
     close(sock);

@@ -1,30 +1,36 @@
-#include <stdio.h> 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include "../include/server.h"
+#include "../include/protocole.h"
 
 // Compteur global pour numéroter les joueurs
 static int compteur_joueur = 1;
 
 // Compte les clients connectés avec pseudo ≠ "inconnu"
-int joueurs_actifs(struct user *list) {
+int joueurs_actifs(struct user *list)
+{
     int count = 0;
-    while (list) {
-        if (strcmp(list->pseudo, "inconnu") != 0) count++;
+    while (list)
+    {
+        if (strcmp(list->pseudo, "inconnu") != 0)
+            count++;
         list = list->next;
     }
     return count;
 }
 
 // Initialisation du socket serveur
-int init_server_socket(int port) {
+int init_server_socket(int port)
+{
     int socketEcoute;
     struct sockaddr_in pointDeRencontreLocal;
 
     socketEcoute = socket(PF_INET, SOCK_STREAM, 0);
-    if (socketEcoute < 0) {
+    if (socketEcoute < 0)
+    {
         perror("socket");
         exit(EXIT_FAILURE);
     }
@@ -35,12 +41,14 @@ int init_server_socket(int port) {
     pointDeRencontreLocal.sin_addr.s_addr = htonl(INADDR_ANY);
     pointDeRencontreLocal.sin_port = htons(port);
 
-    if (bind(socketEcoute, (struct sockaddr *)&pointDeRencontreLocal, longueurAdresse) < 0) {
+    if (bind(socketEcoute, (struct sockaddr *)&pointDeRencontreLocal, longueurAdresse) < 0)
+    {
         perror("bind");
         exit(EXIT_FAILURE);
     }
 
-    if (listen(socketEcoute, 5) < 0) {
+    if (listen(socketEcoute, 5) < 0)
+    {
         perror("listen");
         exit(EXIT_FAILURE);
     }
@@ -49,22 +57,26 @@ int init_server_socket(int port) {
     return socketEcoute;
 }
 
-void ajouter_client(struct user **list, int clientSocket, struct sockaddr_in *addr) {
+void ajouter_client(struct user **list, int clientSocket, struct sockaddr_in *addr)
+{
     // Refuser la connexion si 2 clients déjà connectés
     int count = 0;
     struct user *tmp = *list;
-    while (tmp) {
+    while (tmp)
+    {
         count++;
         tmp = tmp->next;
     }
-    if (count >= 2) {
+    if (count >= 2)
+    {
         dprintf(clientSocket, "Connexion refusée : 2 joueurs déjà connectés.\n");
         close(clientSocket);
         return;
     }
 
     struct user *nouveau = malloc(sizeof(struct user));
-    if (!nouveau) {
+    if (!nouveau)
+    {
         perror("malloc");
         close(clientSocket);
         return;
@@ -74,22 +86,32 @@ void ajouter_client(struct user **list, int clientSocket, struct sockaddr_in *ad
     nouveau->sockin = *addr;
     nouveau->numero = compteur_joueur++;
     nouveau->etat = ETAT_ATTENTE;
-    nouveau->estPret = 0;
     strcpy(nouveau->pseudo, "inconnu");
     nouveau->symbole = (nouveau->numero == 1) ? 'X' : 'O';
     nouveau->next = *list;
     *list = nouveau;
 
-    printf("[Joueur %d] connecté (fd = %d) - symbole: %c\n", nouveau->numero, clientSocket, nouveau->symbole);
+    // ENVOI DES MESSAGES INITIAUX
+    dprintf(nouveau->socket, "/info ID:Mon super serveur v3.6\n");
+    printf("S: /info ID:Mon super serveur v3.6\n");
+
+    dprintf(nouveau->socket, "/login\n");
+    printf("S: /login\n");
+
+    verifier_lancement_partie(*list);
 }
 
-void supprimer_client(struct user **list, int client_fd) {
+void supprimer_client(struct user **list, int client_fd)
+{
     struct user *cur = *list, *prev = NULL;
-    while (cur != NULL) {
-        if (cur->socket == client_fd) {
-            if (prev) prev->next = cur->next;
-            else *list = cur->next;
-            printf("[Joueur %d] déconnecté (fd = %d)\n", cur->numero, client_fd);
+    while (cur != NULL)
+    {
+        if (cur->socket == client_fd)
+        {
+            if (prev)
+                prev->next = cur->next;
+            else
+                *list = cur->next;
             close(cur->socket);
             free(cur);
             return;
@@ -99,12 +121,14 @@ void supprimer_client(struct user **list, int client_fd) {
     }
 }
 
-void handle_new_connection(int server_socket, struct user **user_list) {
+void handle_new_connection(int server_socket, struct user **user_list)
+{
     struct sockaddr_in clientAddr;
     socklen_t addrlen = sizeof(clientAddr);
     int clientSocket = accept(server_socket, (struct sockaddr *)&clientAddr, &addrlen);
 
-    if (clientSocket < 0) {
+    if (clientSocket < 0)
+    {
         perror("accept");
         return;
     }

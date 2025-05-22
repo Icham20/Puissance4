@@ -4,12 +4,25 @@
 #include <unistd.h>
 #include <poll.h>
 #include "../include/server.h"
-#include "../include/protocol.h"
+#include "../include/protocole.h"
 
 int main(int argc, char *argv[]) {
     int port = DEFAULT_PORT;
+    largeur = 7;
+    hauteur = 6;
 
-    // Vérification de l'option -p pour choisir le port
+    // Gestion des options -p, -L, -H
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-p") == 0 && i + 1 < argc) {
+            port = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "-L") == 0 && i + 1 < argc) {
+            int l = atoi(argv[++i]);
+            if (l >= 5 && l <= 10) largeur = l;
+        } else if (strcmp(argv[i], "-H") == 0 && i + 1 < argc) {
+            int h = atoi(argv[++i]);
+            if (h >= 4 && h <= 10) hauteur = h;
+        }
+    }
     if (argc == 3 && strcmp(argv[1], "-p") == 0) {
         port = atoi(argv[2]);
     }
@@ -81,6 +94,16 @@ int main(int argc, char *argv[]) {
                         // /ready
                         else if (strncmp(buffer, "/ready", 6) == 0) {
                             handle_ready(tmp, user_list);
+                        }
+
+                        // /play <colonne>
+                        else if (strncmp(buffer, "/play", 5) == 0) {
+                            int col = -1;
+                            if (sscanf(buffer, "/play %d", &col) == 1) {
+                                handle_play(tmp, col, user_list);
+                            } else {
+                                dprintf(tmp->socket, "/ret PLAY:103\n");
+                            }
                         }
 
                         // autres commandes à venir...
