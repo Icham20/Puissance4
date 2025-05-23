@@ -8,7 +8,7 @@
 
 #define LG_MESSAGE 512
 
-void afficher_reponses(int sock) {
+int afficher_reponses(int sock) {
     char response[LG_MESSAGE];
     int n = recv(sock, response, sizeof(response) - 1, MSG_DONTWAIT);
     if (n > 0) {
@@ -16,9 +16,14 @@ void afficher_reponses(int sock) {
         char *ligne = strtok(response, "\n");
         while (ligne) {
             printf("📩 Réponse : %s\n", ligne);
+            if (strstr(ligne, "Connexion refusée")) {
+                printf("⛔ Connexion refusée par le serveur. Fermeture du client.\n");
+                return -1;  // Signale au main() de fermer
+            }
             ligne = strtok(NULL, "\n");
         }
     }
+    return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -55,7 +60,10 @@ int main(int argc, char *argv[]) {
 
     // Messages initiaux (ex : /info ID, /login)
     usleep(100 * 1000);  // Petite pause pour laisser le serveur répondre
-    afficher_reponses(sock);
+    if (afficher_reponses(sock) < 0) {
+        close(sock);
+        return 0;
+    }
 
     char buffer[LG_MESSAGE];
 
@@ -70,7 +78,7 @@ int main(int argc, char *argv[]) {
 
         usleep(100 * 1000);  // Laisse le temps au serveur d’envoyer toutes les lignes
 
-        afficher_reponses(sock);
+        if (afficher_reponses(sock) < 0) break;
     }
 
     close(sock);

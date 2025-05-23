@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -g
 INCLUDES = -Iinclude
-SERVER_SRC = src/main.c src/server.c src/protocole.c
+SERVER_SRC = src/main.c src/server.c src/protocole.c src/grille.c
 SERVER_BIN = server_puissance4
 CLIENT_SRC = src/client.c
 CLIENT_BIN = client

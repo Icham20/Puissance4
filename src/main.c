@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,7 +12,6 @@ int main(int argc, char *argv[]) {
     largeur = 7;
     hauteur = 6;
 
-    // Gestion des options -p, -L, -H
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-p") == 0 && i + 1 < argc) {
             port = atoi(argv[++i]);
@@ -23,25 +23,19 @@ int main(int argc, char *argv[]) {
             if (h >= 4 && h <= 10) hauteur = h;
         }
     }
-    if (argc == 3 && strcmp(argv[1], "-p") == 0) {
-        port = atoi(argv[2]);
-    }
 
-    struct user *user_list = NULL; // Liste chaînée des clients
-    int server_socket = init_server_socket(port); // Création et écoute du socket serveur
+    struct user *user_list = NULL;
+    int server_socket = init_server_socket(port);
 
-    struct pollfd pollfds[101]; // Tableau pour poll (1 pour serveur + 100 max clients)
+    struct pollfd pollfds[101];
     int nfds;
 
     while (1) {
         nfds = 0;
-
-        // Ajouter le socket d'écoute
         pollfds[nfds].fd = server_socket;
         pollfds[nfds].events = POLLIN;
         nfds++;
 
-        // Ajouter tous les sockets clients
         struct user *cur = user_list;
         while (cur && nfds < 101) {
             pollfds[nfds].fd = cur->socket;
@@ -50,38 +44,33 @@ int main(int argc, char *argv[]) {
             cur = cur->next;
         }
 
-        // Attente d'activité sur les sockets
         int ready = poll(pollfds, nfds, -1);
         if (ready <= 0) continue;
 
-        // Nouvelle connexion entrante
         if (pollfds[0].revents & POLLIN) {
             handle_new_connection(server_socket, &user_list);
         }
 
-        // Lecture des messages clients
         char buffer[LG_MESSAGE];
         for (int i = 1; i < nfds; i++) {
             if (pollfds[i].revents & POLLIN) {
                 int client_fd = pollfds[i].fd;
                 int n = read(client_fd, buffer, LG_MESSAGE - 1);
                 if (n <= 0) {
-                    supprimer_client(&user_list, client_fd); // Déconnexion client
+                    supprimer_client(&user_list, client_fd);
                 } else {
                     buffer[n] = '\0';
-                    buffer[strcspn(buffer, "\r\n")] = '\0'; // Nettoyage des fins de ligne
+                    buffer[strcspn(buffer, "\r\n")] = '\0';
 
-                    // Trouver le joueur correspondant au fd
                     struct user *tmp = user_list;
                     while (tmp && tmp->socket != client_fd) {
                         tmp = tmp->next;
                     }
 
                     if (tmp) {
-                        printf("[REÇU] [%s | fd=%d | symbole=%c | état=%d] : %s\n",
-                               tmp->pseudo, tmp->socket, tmp->symbole, tmp->etat, buffer);
+                        printf("[REÇU] [%s | fd=%d | symbole=%c] : %s\n",
+                               tmp->pseudo, tmp->socket, tmp->symbole, buffer);
 
-                        // /login <pseudo>
                         if (strncmp(buffer, "/login", 6) == 0) {
                             char pseudo[32];
                             if (sscanf(buffer, "/login %31s", pseudo) == 1) {
@@ -89,15 +78,7 @@ int main(int argc, char *argv[]) {
                             } else {
                                 dprintf(tmp->socket, "/ret LOGIN:105\n");
                             }
-                        }
-
-                        // /ready
-                        else if (strncmp(buffer, "/ready", 6) == 0) {
-                            handle_ready(tmp, user_list);
-                        }
-
-                        // /play <colonne>
-                        else if (strncmp(buffer, "/play", 5) == 0) {
+                        } else if (strncmp(buffer, "/play", 5) == 0) {
                             int col = -1;
                             if (sscanf(buffer, "/play %d", &col) == 1) {
                                 handle_play(tmp, col, user_list);
@@ -105,8 +86,6 @@ int main(int argc, char *argv[]) {
                                 dprintf(tmp->socket, "/ret PLAY:103\n");
                             }
                         }
-
-                        // autres commandes à venir...
                     } else {
                         printf("[AVERTISSEMENT] Client inconnu (fd = %d) : %s\n", client_fd, buffer);
                     }

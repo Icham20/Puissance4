@@ -59,7 +59,6 @@ int init_server_socket(int port)
 
 void ajouter_client(struct user **list, int clientSocket, struct sockaddr_in *addr)
 {
-    // Refuser la connexion si 2 clients déjà connectés
     int count = 0;
     struct user *tmp = *list;
     while (tmp)
@@ -91,9 +90,11 @@ void ajouter_client(struct user **list, int clientSocket, struct sockaddr_in *ad
     nouveau->next = *list;
     *list = nouveau;
 
-    // ENVOI DES MESSAGES INITIAUX
-    dprintf(nouveau->socket, "/info ID:Mon super serveur v3.6\n");
-    printf("S: /info ID:Mon super serveur v3.6\n");
+    // NOUVEL AFFICHAGE MODIFIÉ
+    char msg[64];
+    snprintf(msg, sizeof(msg), "/info ID: Joueur %d connecté.\n", nouveau->numero);
+    dprintf(nouveau->socket, "%s", msg);
+    printf("S: %s", msg);
 
     dprintf(nouveau->socket, "/login\n");
     printf("S: /login\n");
@@ -113,7 +114,26 @@ void supprimer_client(struct user **list, int client_fd)
             else
                 *list = cur->next;
             close(cur->socket);
-            free(cur);
+            // Message de déconnexion
+    char deco_msg[64];
+    snprintf(deco_msg, sizeof(deco_msg), "S: ❌ Joueur %d déconnecté.\n", cur->numero);
+    printf("%s", deco_msg);
+
+    free(cur);
+
+    // Vérifie s'il reste des joueurs actifs
+    struct user *check = *list;
+    int actifs = 0;
+    while (check) {
+        if (strcmp(check->pseudo, "inconnu") != 0)
+            actifs++;
+        check = check->next;
+    }
+
+    if (actifs == 0) {
+        printf("S: 🛑 Tous les joueurs sont déconnectés. Fermeture du serveur.\n");
+        exit(EXIT_SUCCESS);
+    }
             return;
         }
         prev = cur;

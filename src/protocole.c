@@ -1,16 +1,15 @@
+
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <ctype.h>
 #include "../include/protocole.h"
+#include "../include/grille.h"
 
 #define MIN_LOGIN_LEN 3
 #define MAX_LOGIN_LEN 16
 #define MAX_HAUTEUR 10
 #define MAX_LARGEUR 10
-
-void initialiser_grille(void);
-int handle_ready(struct user *client, struct user *user_list);
 
 char grille[MAX_HAUTEUR][MAX_LARGEUR];
 int hauteur = 6;
@@ -72,11 +71,11 @@ int handle_login(struct user *client, const char *login, struct user *user_list)
     }
 
     int numero = client->numero;
-    char role = (client->symbole == 'X') ? 'r' : 'o';
+    char role = (client->symbole == 'X') ? 'x' : 'o';
 
     char info_msg[128];
     snprintf(info_msg, sizeof(info_msg), "/info LOGIN:%d/%d:%s:%c\n", numero, total, client->pseudo, role);
-    printf("S: %s", info_msg);
+    printf("S: %s\n", info_msg);
     dprintf(client->socket, "%s", info_msg);
 
     verifier_lancement_partie(user_list);
@@ -143,7 +142,8 @@ void send_matrix_to_all(struct user *user_list)
     }
     strcat(buffer, "\n");
 
-    printf("S: %s\n", buffer);
+    afficher_grille(); // Affichage visuel dans le terminal serveur
+
     struct user *tmp = user_list;
     while (tmp)
     {
@@ -228,7 +228,7 @@ int handle_play(struct user *client, int col, struct user *user_list)
         struct user *tmp = user_list;
         char buffer[256];
         snprintf(buffer, sizeof(buffer), "/info END:WIN:%s\n", client->pseudo);
-        printf("S: %s\n", buffer);
+        printf("S: 🎉 Victoire de %s (%c)\n", client->pseudo, client->symbole);
         while (tmp)
         {
             dprintf(tmp->socket, "%s", buffer);
@@ -236,7 +236,7 @@ int handle_play(struct user *client, int col, struct user *user_list)
         }
     } else if (grille_est_pleine()) {
         struct user *tmp = user_list;
-        printf("S: /info END:DRAW:NONE\n");
+        printf("S: ⚖️  Match nul !\n");
         while (tmp) {
             dprintf(tmp->socket, "/info END:DRAW:NONE\n");
             tmp = tmp->next;
@@ -254,6 +254,7 @@ int handle_play(struct user *client, int col, struct user *user_list)
         {
             if (turn->estSonTour)
             {
+                printf("🔁 En attente du joueur %s (%c)...\n", turn->pseudo, turn->symbole);
                 printf("S: /play\n");
                 dprintf(turn->socket, "/play\n");
                 break;
@@ -262,11 +263,5 @@ int handle_play(struct user *client, int col, struct user *user_list)
         }
     }
 
-    return 0;
-}
-
-int handle_ready(struct user *client, struct user *user_list)
-{
-    // Cette fonction est laissée vide car elle n'est plus utilisée, mais reste déclarée pour compatibilité
     return 0;
 }
