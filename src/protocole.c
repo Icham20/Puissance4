@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -15,10 +14,8 @@ char grille[MAX_HAUTEUR][MAX_LARGEUR];
 int hauteur = 6;
 int largeur = 7;
 
-int login_existe(struct user *list, const char *login)
-{
-    while (list)
-    {
+int login_existe(struct user *list, const char *login) {
+    while (list) {
         if (strcmp(list->pseudo, login) == 0)
             return 1;
         list = list->next;
@@ -82,17 +79,13 @@ int handle_login(struct user *client, const char *login, struct user *user_list)
     return 0;
 }
 
-void verifier_lancement_partie(struct user *user_list)
-{
+void verifier_lancement_partie(struct user *user_list) {
     struct user *j1 = NULL, *j2 = NULL, *tmp = user_list;
-    while (tmp)
-    {
-        if (strcmp(tmp->pseudo, "inconnu") != 0)
-        {
+    while (tmp) {
+        if (strcmp(tmp->pseudo, "inconnu") != 0) {
             if (!j1)
                 j1 = tmp;
-            else if (!j2)
-            {
+            else if (!j2) {
                 j2 = tmp;
                 break;
             }
@@ -100,8 +93,7 @@ void verifier_lancement_partie(struct user *user_list)
         tmp = tmp->next;
     }
 
-    if (j1 && j2)
-    {
+    if (j1 && j2) {
         initialiser_grille();
         j1->etat = ETAT_JEU;
         j2->etat = ETAT_JEU;
@@ -110,31 +102,25 @@ void verifier_lancement_partie(struct user *user_list)
 
         send_matrix_to_all(user_list);
 
-        if (j1->estSonTour)
-        {
+        if (j1->estSonTour) {
             printf("S: /play\n");
             dprintf(j1->socket, "/play\n");
-        }
-        else
-        {
+        } else {
             printf("S: /play\n");
             dprintf(j2->socket, "/play\n");
         }
     }
 }
 
-void initialiser_grille()
-{
+void initialiser_grille() {
     for (int i = 0; i < hauteur; i++)
         for (int j = 0; j < largeur; j++)
             grille[i][j] = '_';
 }
 
-void send_matrix_to_all(struct user *user_list)
-{
+void send_matrix_to_all(struct user *user_list) {
     char buffer[1024] = "/info MATRIX:";
-    for (int i = hauteur - 1; i >= 0; i--)
-    {
+    for (int i = hauteur - 1; i >= 0; i--) {
         for (int j = 0; j < largeur; j++)
             strncat(buffer, &grille[i][j], 1);
         if (i > 0)
@@ -142,18 +128,16 @@ void send_matrix_to_all(struct user *user_list)
     }
     strcat(buffer, "\n");
 
-    afficher_grille(); // Affichage visuel dans le terminal serveur
+    afficher_grille();  // Affichage sur le terminal serveur
 
     struct user *tmp = user_list;
-    while (tmp)
-    {
+    while (tmp) {
         dprintf(tmp->socket, "%s", buffer);
         tmp = tmp->next;
     }
 }
 
-int grille_est_pleine()
-{
+int grille_est_pleine() {
     for (int i = 0; i < hauteur; i++)
         for (int j = 0; j < largeur; j++)
             if (grille[i][j] == '_')
@@ -161,8 +145,7 @@ int grille_est_pleine()
     return 1;
 }
 
-int verifier_victoire(char symbole)
-{
+int verifier_victoire(char symbole) {
     for (int i = 0; i < hauteur; i++)
         for (int j = 0; j <= largeur - 4; j++)
             if (grille[i][j] == symbole && grille[i][j + 1] == symbole &&
@@ -186,34 +169,28 @@ int verifier_victoire(char symbole)
     return 0;
 }
 
-int handle_play(struct user *client, int col, struct user *user_list)
-{
-    if (client->etat != ETAT_JEU || !client->estSonTour)
-    {
+int handle_play(struct user *client, int col, struct user *user_list) {
+    if (client->etat != ETAT_JEU || !client->estSonTour) {
         printf("S: /ret PLAY:102\n");
         dprintf(client->socket, "/ret PLAY:102\n");
         return 102;
     }
 
-    if (col < 0 || col >= largeur)
-    {
+    if (col < 0 || col >= largeur) {
         printf("S: /ret PLAY:103\n");
         dprintf(client->socket, "/ret PLAY:103\n");
         return 103;
     }
 
     int ligne = -1;
-    for (int i = 0; i < hauteur; i++)
-    {
-        if (grille[i][col] == '_')
-        {
+    for (int i = 0; i < hauteur; i++) {
+        if (grille[i][col] == '_') {
             ligne = i;
             break;
         }
     }
 
-    if (ligne == -1)
-    {
+    if (ligne == -1) {
         printf("S: /ret PLAY:104\n");
         dprintf(client->socket, "/ret PLAY:104\n");
         return 104;
@@ -229,8 +206,7 @@ int handle_play(struct user *client, int col, struct user *user_list)
         char buffer[256];
         snprintf(buffer, sizeof(buffer), "/info END:WIN:%s\n", client->pseudo);
         printf("S: 🎉 Victoire de %s (%c)\n", client->pseudo, client->symbole);
-        while (tmp)
-        {
+        while (tmp) {
             dprintf(tmp->socket, "%s", buffer);
             tmp = tmp->next;
         }
@@ -243,17 +219,14 @@ int handle_play(struct user *client, int col, struct user *user_list)
         }
     } else {
         struct user *tmp = user_list;
-        while (tmp)
-        {
+        while (tmp) {
             tmp->estSonTour = !tmp->estSonTour;
             tmp = tmp->next;
         }
 
         struct user *turn = user_list;
-        while (turn)
-        {
-            if (turn->estSonTour)
-            {
+        while (turn) {
+            if (turn->estSonTour) {
                 printf("🔁 En attente du joueur %s (%c)...\n", turn->pseudo, turn->symbole);
                 printf("S: /play\n");
                 dprintf(turn->socket, "/play\n");

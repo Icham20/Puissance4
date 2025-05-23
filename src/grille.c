@@ -7,7 +7,7 @@ extern char joueur_actuel; // X ou O si défini dans le serveur
 
 void afficher_grille(void) {
     printf("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
-    printf("🧩 Grille de jeu (%dx%d)\n", largeur, hauteur);
+    printf(" Grille de jeu (%dx%d)\n", largeur, hauteur);
     printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n");
 
     for (int i = hauteur - 1; i >= 0; i--) {
