@@ -5,15 +5,18 @@
 #include "../include/protocole.h"
 #include "../include/grille.h"
 
+// Constantes pour les limites de login et dimensions de la grille
 #define MIN_LOGIN_LEN 3
 #define MAX_LOGIN_LEN 16
 #define MAX_HAUTEUR 10
 #define MAX_LARGEUR 10
 
+// Définition de la grille et ses dimensions
 char grille[MAX_HAUTEUR][MAX_LARGEUR];
 int hauteur = 6;
 int largeur = 7;
 
+// Vérifie si un login existe déjà dans la liste des utilisateurs
 int login_existe(struct user *list, const char *login) {
     while (list) {
         if (strcmp(list->pseudo, login) == 0)
@@ -23,7 +26,9 @@ int login_existe(struct user *list, const char *login) {
     return 0;
 }
 
+// Gère la commande /login envoyée par un client
 int handle_login(struct user *client, const char *login, struct user *user_list) {
+    // Compte les joueurs connectés
     int joueur_connectes = 0;
     struct user *tmp_count = user_list;
     while (tmp_count) {
@@ -32,6 +37,7 @@ int handle_login(struct user *client, const char *login, struct user *user_list)
         tmp_count = tmp_count->next;
     }
 
+    // Refuse si deux joueurs sont déjà connectés
     if (joueur_connectes >= 2) {
         printf("S: /ret LOGIN:106\n");
         dprintf(client->socket, "/ret LOGIN:106\n");
@@ -39,6 +45,7 @@ int handle_login(struct user *client, const char *login, struct user *user_list)
         return 106;
     }
 
+    // Vérifie la validité du login (longueur et caractères interdits)
     int len = strlen(login);
     if (len < MIN_LOGIN_LEN || len > MAX_LOGIN_LEN || strchr(login, ':')) {
         printf("S: /ret LOGIN:105\n");
@@ -47,6 +54,7 @@ int handle_login(struct user *client, const char *login, struct user *user_list)
         return 105;
     }
 
+    // Vérifie l’unicité du login
     if (login_existe(user_list, login)) {
         printf("S: /ret LOGIN:101\n");
         dprintf(client->socket, "/ret LOGIN:101\n");
@@ -54,12 +62,15 @@ int handle_login(struct user *client, const char *login, struct user *user_list)
         return 101;
     }
 
+    // Enregistre le login
     strncpy(client->pseudo, login, sizeof(client->pseudo) - 1);
     client->pseudo[sizeof(client->pseudo) - 1] = '\0';
 
+    // Réponse positive au client
     printf("S: /ret LOGIN:000\n");
     dprintf(client->socket, "/ret LOGIN:000\n");
 
+    // Compte total d’utilisateurs connectés
     int total = 0;
     struct user *tmp = user_list;
     while (tmp) {
@@ -67,18 +78,20 @@ int handle_login(struct user *client, const char *login, struct user *user_list)
         tmp = tmp->next;
     }
 
+    // Envoie un message d’info avec le rôle du joueur
     int numero = client->numero;
     char role = (client->symbole == 'X') ? 'x' : 'o';
-
     char info_msg[128];
     snprintf(info_msg, sizeof(info_msg), "/info LOGIN:%d/%d:%s:%c\n", numero, total, client->pseudo, role);
     printf("S: %s\n", info_msg);
     dprintf(client->socket, "%s", info_msg);
 
+    // Vérifie si la partie peut être lancée
     verifier_lancement_partie(user_list);
     return 0;
 }
 
+// Vérifie si deux joueurs sont prêts, et lance la partie
 void verifier_lancement_partie(struct user *user_list) {
     struct user *j1 = NULL, *j2 = NULL, *tmp = user_list;
     while (tmp) {
@@ -112,12 +125,14 @@ void verifier_lancement_partie(struct user *user_list) {
     }
 }
 
+// Initialise la grille avec des cases vides ('_')
 void initialiser_grille() {
     for (int i = 0; i < hauteur; i++)
         for (int j = 0; j < largeur; j++)
             grille[i][j] = '_';
 }
 
+// Envoie l’état actuel de la grille à tous les clients
 void send_matrix_to_all(struct user *user_list) {
     char buffer[1024] = "/info MATRIX:";
     for (int i = hauteur - 1; i >= 0; i--) {
@@ -128,7 +143,7 @@ void send_matrix_to_all(struct user *user_list) {
     }
     strcat(buffer, "\n");
 
-    afficher_grille();  // Affichage sur le terminal serveur
+    afficher_grille();  // Affiche la grille côté serveur
 
     struct user *tmp = user_list;
     while (tmp) {
@@ -137,6 +152,7 @@ void send_matrix_to_all(struct user *user_list) {
     }
 }
 
+// Vérifie si la grille est pleine
 int grille_est_pleine() {
     for (int i = 0; i < hauteur; i++)
         for (int j = 0; j < largeur; j++)
@@ -145,22 +161,27 @@ int grille_est_pleine() {
     return 1;
 }
 
+// Vérifie s’il y a une victoire (4 symboles alignés)
 int verifier_victoire(char symbole) {
+    // Alignement horizontal
     for (int i = 0; i < hauteur; i++)
         for (int j = 0; j <= largeur - 4; j++)
             if (grille[i][j] == symbole && grille[i][j + 1] == symbole &&
                 grille[i][j + 2] == symbole && grille[i][j + 3] == symbole)
                 return 1;
+    // Alignement vertical
     for (int i = 0; i <= hauteur - 4; i++)
         for (int j = 0; j < largeur; j++)
             if (grille[i][j] == symbole && grille[i + 1][j] == symbole &&
                 grille[i + 2][j] == symbole && grille[i + 3][j] == symbole)
                 return 1;
+    // Diagonale montante "/"
     for (int i = 3; i < hauteur; i++)
         for (int j = 0; j <= largeur - 4; j++)
             if (grille[i][j] == symbole && grille[i - 1][j + 1] == symbole &&
                 grille[i - 2][j + 2] == symbole && grille[i - 3][j + 3] == symbole)
                 return 1;
+    // Diagonale descendante "\"
     for (int i = 0; i <= hauteur - 4; i++)
         for (int j = 0; j <= largeur - 4; j++)
             if (grille[i][j] == symbole && grille[i + 1][j + 1] == symbole &&
@@ -169,6 +190,7 @@ int verifier_victoire(char symbole) {
     return 0;
 }
 
+// Gère le coup joué par un client
 int handle_play(struct user *client, int col, struct user *user_list) {
     if (client->etat != ETAT_JEU || !client->estSonTour) {
         printf("S: /ret PLAY:102\n");
@@ -182,6 +204,7 @@ int handle_play(struct user *client, int col, struct user *user_list) {
         return 103;
     }
 
+    // Trouve la première ligne vide dans la colonne
     int ligne = -1;
     for (int i = 0; i < hauteur; i++) {
         if (grille[i][col] == '_') {
@@ -196,11 +219,13 @@ int handle_play(struct user *client, int col, struct user *user_list) {
         return 104;
     }
 
+    // Place le symbole du joueur
     grille[ligne][col] = client->symbole;
     printf("S: /ret PLAY:000\n");
     dprintf(client->socket, "/ret PLAY:000\n");
     send_matrix_to_all(user_list);
 
+    // Vérifie s’il y a un gagnant
     if (verifier_victoire(client->symbole)) {
         struct user *tmp = user_list;
         char buffer[256];
@@ -211,6 +236,7 @@ int handle_play(struct user *client, int col, struct user *user_list) {
             tmp = tmp->next;
         }
     } else if (grille_est_pleine()) {
+        // Match nul
         struct user *tmp = user_list;
         printf("S: ⚖️  Match nul !\n");
         while (tmp) {
@@ -218,12 +244,14 @@ int handle_play(struct user *client, int col, struct user *user_list) {
             tmp = tmp->next;
         }
     } else {
+        // Passe le tour à l’autre joueur
         struct user *tmp = user_list;
         while (tmp) {
             tmp->estSonTour = !tmp->estSonTour;
             tmp = tmp->next;
         }
 
+        // Envoie la commande /play au prochain joueur
         struct user *turn = user_list;
         while (turn) {
             if (turn->estSonTour) {
