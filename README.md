@@ -26,7 +26,7 @@ make client && ./client 127.0.0.1 6000
 
 ```bash
 ssh icham@192.168.200.13                      # Se connecter
-scp -r nomdudossier icham@192.168.200.13:     # Copier le dossier
+scp -r /mnt/c/Puissance4/ icham@192.168.200.13:     # Copier le dossier
 # Mot de passe : Puissance4
 
 # Depuis Ubuntu (Windows Terminal) :
