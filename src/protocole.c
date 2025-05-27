@@ -135,12 +135,15 @@ void initialiser_grille() {
 // Envoie l’état actuel de la grille à tous les clients
 void send_matrix_to_all(struct user *user_list) {
     char buffer[1024] = "/info MATRIX:";
-    for (int i = hauteur - 1; i >= 0; i--) {
-        for (int j = 0; j < largeur; j++)
+
+    for (int i = 0; i < hauteur; i++) {  // DU BAS VERS LE HAUT
+        for (int j = 0; j < largeur; j++) {
             strncat(buffer, &grille[i][j], 1);
-        if (i > 0)
+        }
+        if (i < hauteur - 1)
             strcat(buffer, "/");
     }
+
     strcat(buffer, "\n");
 
     afficher_grille();  // Affiche la grille côté serveur
@@ -152,6 +155,7 @@ void send_matrix_to_all(struct user *user_list) {
     }
 }
 
+
 // Vérifie si la grille est pleine
 int grille_est_pleine() {
     for (int i = 0; i < hauteur; i++)
@@ -162,31 +166,54 @@ int grille_est_pleine() {
 }
 
 // Vérifie s’il y a une victoire (4 symboles alignés)
+
 int verifier_victoire(char symbole) {
+    char minuscule = tolower(symbole);
+
     // Alignement horizontal
-    for (int i = 0; i < hauteur; i++)
-        for (int j = 0; j <= largeur - 4; j++)
+    for (int i = 0; i < hauteur; i++) {
+        for (int j = 0; j <= largeur - 4; j++) {
             if (grille[i][j] == symbole && grille[i][j + 1] == symbole &&
-                grille[i][j + 2] == symbole && grille[i][j + 3] == symbole)
+                grille[i][j + 2] == symbole && grille[i][j + 3] == symbole) {
+                grille[i][j] = grille[i][j + 1] = grille[i][j + 2] = grille[i][j + 3] = minuscule;
                 return 1;
+            }
+        }
+    }
+
     // Alignement vertical
-    for (int i = 0; i <= hauteur - 4; i++)
-        for (int j = 0; j < largeur; j++)
+    for (int i = 0; i <= hauteur - 4; i++) {
+        for (int j = 0; j < largeur; j++) {
             if (grille[i][j] == symbole && grille[i + 1][j] == symbole &&
-                grille[i + 2][j] == symbole && grille[i + 3][j] == symbole)
+                grille[i + 2][j] == symbole && grille[i + 3][j] == symbole) {
+                grille[i][j] = grille[i + 1][j] = grille[i + 2][j] = grille[i + 3][j] = minuscule;
                 return 1;
+            }
+        }
+    }
+
     // Diagonale montante "/"
-    for (int i = 3; i < hauteur; i++)
-        for (int j = 0; j <= largeur - 4; j++)
+    for (int i = 3; i < hauteur; i++) {
+        for (int j = 0; j <= largeur - 4; j++) {
             if (grille[i][j] == symbole && grille[i - 1][j + 1] == symbole &&
-                grille[i - 2][j + 2] == symbole && grille[i - 3][j + 3] == symbole)
+                grille[i - 2][j + 2] == symbole && grille[i - 3][j + 3] == symbole) {
+                grille[i][j] = grille[i - 1][j + 1] = grille[i - 2][j + 2] = grille[i - 3][j + 3] = minuscule;
                 return 1;
-    // Diagonale descendante "\"
-    for (int i = 0; i <= hauteur - 4; i++)
-        for (int j = 0; j <= largeur - 4; j++)
+            }
+        }
+    }
+
+    // Diagonale descendante "\\"
+    for (int i = 0; i <= hauteur - 4; i++) {
+        for (int j = 0; j <= largeur - 4; j++) {
             if (grille[i][j] == symbole && grille[i + 1][j + 1] == symbole &&
-                grille[i + 2][j + 2] == symbole && grille[i + 3][j + 3] == symbole)
+                grille[i + 2][j + 2] == symbole && grille[i + 3][j + 3] == symbole) {
+                grille[i][j] = grille[i + 1][j + 1] = grille[i + 2][j + 2] = grille[i + 3][j + 3] = minuscule;
                 return 1;
+            }
+        }
+    }
+
     return 0;
 }
 
@@ -223,10 +250,14 @@ int handle_play(struct user *client, int col, struct user *user_list) {
     grille[ligne][col] = client->symbole;
     printf("S: /ret PLAY:000\n");
     dprintf(client->socket, "/ret PLAY:000\n");
-    send_matrix_to_all(user_list);
+
+    // ⛔️ Ne pas envoyer la grille ici (encore sans minuscule)
+    // send_matrix_to_all(user_list);
 
     // Vérifie s’il y a un gagnant
     if (verifier_victoire(client->symbole)) {
+        send_matrix_to_all(user_list);  // ✅ Envoie de la grille modifiée avec minuscules
+
         struct user *tmp = user_list;
         char buffer[256];
         snprintf(buffer, sizeof(buffer), "/info END:WIN:%s\n", client->pseudo);
@@ -236,7 +267,7 @@ int handle_play(struct user *client, int col, struct user *user_list) {
             tmp = tmp->next;
         }
     } else if (grille_est_pleine()) {
-        // Match nul
+        send_matrix_to_all(user_list);  // ✅ Affiche la grille finale
         struct user *tmp = user_list;
         printf("S: ⚖️  Match nul !\n");
         while (tmp) {
@@ -244,6 +275,8 @@ int handle_play(struct user *client, int col, struct user *user_list) {
             tmp = tmp->next;
         }
     } else {
+        send_matrix_to_all(user_list);  // ✅ Affiche la grille normale s'il n'y a pas de fin de partie
+
         // Passe le tour à l’autre joueur
         struct user *tmp = user_list;
         while (tmp) {
