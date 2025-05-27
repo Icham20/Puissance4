@@ -168,47 +168,67 @@ int grille_est_pleine() {
 // Vérifie s’il y a une victoire (4 symboles alignés)
 
 int verifier_victoire(char symbole) {
-    char minuscule = tolower(symbole);
+    // On prépare deux versions du symbole : une minuscule pour les pions normaux, une majuscule pour les gagnants
+    char gagnant = toupper(symbole);
+    char normal = tolower(symbole);
 
-    // Alignement horizontal
+    // Convertir toute la grille en minuscule avant vérification
+    for (int i = 0; i < hauteur; i++)
+        for (int j = 0; j < largeur; j++)
+            if (grille[i][j] == symbole || grille[i][j] == gagnant)
+                grille[i][j] = normal;
+
+    // Horizontal
     for (int i = 0; i < hauteur; i++) {
         for (int j = 0; j <= largeur - 4; j++) {
-            if (grille[i][j] == symbole && grille[i][j + 1] == symbole &&
-                grille[i][j + 2] == symbole && grille[i][j + 3] == symbole) {
-                grille[i][j] = grille[i][j + 1] = grille[i][j + 2] = grille[i][j + 3] = minuscule;
+            if (grille[i][j] == normal && grille[i][j + 1] == normal &&
+                grille[i][j + 2] == normal && grille[i][j + 3] == normal) {
+                grille[i][j] = gagnant;
+                grille[i][j + 1] = gagnant;
+                grille[i][j + 2] = gagnant;
+                grille[i][j + 3] = gagnant;
                 return 1;
             }
         }
     }
 
-    // Alignement vertical
+    // Vertical
     for (int i = 0; i <= hauteur - 4; i++) {
         for (int j = 0; j < largeur; j++) {
-            if (grille[i][j] == symbole && grille[i + 1][j] == symbole &&
-                grille[i + 2][j] == symbole && grille[i + 3][j] == symbole) {
-                grille[i][j] = grille[i + 1][j] = grille[i + 2][j] = grille[i + 3][j] = minuscule;
+            if (grille[i][j] == normal && grille[i + 1][j] == normal &&
+                grille[i + 2][j] == normal && grille[i + 3][j] == normal) {
+                grille[i][j] = gagnant;
+                grille[i + 1][j] = gagnant;
+                grille[i + 2][j] = gagnant;
+                grille[i + 3][j] = gagnant;
                 return 1;
             }
         }
     }
 
-    // Diagonale montante "/"
+    // Diagonale montante
     for (int i = 3; i < hauteur; i++) {
         for (int j = 0; j <= largeur - 4; j++) {
-            if (grille[i][j] == symbole && grille[i - 1][j + 1] == symbole &&
-                grille[i - 2][j + 2] == symbole && grille[i - 3][j + 3] == symbole) {
-                grille[i][j] = grille[i - 1][j + 1] = grille[i - 2][j + 2] = grille[i - 3][j + 3] = minuscule;
+            if (grille[i][j] == normal && grille[i - 1][j + 1] == normal &&
+                grille[i - 2][j + 2] == normal && grille[i - 3][j + 3] == normal) {
+                grille[i][j] = gagnant;
+                grille[i - 1][j + 1] = gagnant;
+                grille[i - 2][j + 2] = gagnant;
+                grille[i - 3][j + 3] = gagnant;
                 return 1;
             }
         }
     }
 
-    // Diagonale descendante "\\"
+    // Diagonale descendante
     for (int i = 0; i <= hauteur - 4; i++) {
         for (int j = 0; j <= largeur - 4; j++) {
-            if (grille[i][j] == symbole && grille[i + 1][j + 1] == symbole &&
-                grille[i + 2][j + 2] == symbole && grille[i + 3][j + 3] == symbole) {
-                grille[i][j] = grille[i + 1][j + 1] = grille[i + 2][j + 2] = grille[i + 3][j + 3] = minuscule;
+            if (grille[i][j] == normal && grille[i + 1][j + 1] == normal &&
+                grille[i + 2][j + 2] == normal && grille[i + 3][j + 3] == normal) {
+                grille[i][j] = gagnant;
+                grille[i + 1][j + 1] = gagnant;
+                grille[i + 2][j + 2] = gagnant;
+                grille[i + 3][j + 3] = gagnant;
                 return 1;
             }
         }
@@ -216,6 +236,8 @@ int verifier_victoire(char symbole) {
 
     return 0;
 }
+
+
 
 // Gère le coup joué par un client
 int handle_play(struct user *client, int col, struct user *user_list) {
