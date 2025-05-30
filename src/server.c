@@ -101,7 +101,7 @@ void ajouter_client(struct user **list, int clientSocket, struct sockaddr_in *ad
 
     // Message d'identification au client
     char msg[64];
-    snprintf(msg, sizeof(msg), "/info ID:Icham Puissance 4 v2\n");
+    snprintf(msg, sizeof(msg), "/info ID:Icham Puissance 4 v2.1\n");
     dprintf(nouveau->socket, "%s", msg);
     printf("S: %s", msg);
 
