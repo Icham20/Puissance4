@@ -12,60 +12,71 @@
 int hauteur = 6;
 int largeur = 7;
 
+// ✅ Vérifie si la chaîne est uniquement "/login"
+int est_login_seul(const char *msg) {
+    char copie[LG_MESSAGE];
+    strncpy(copie, msg, LG_MESSAGE);
+    copie[LG_MESSAGE - 1] = '\0';
+
+    for (int i = strlen(copie) - 1; i >= 0; i--) {
+        if (copie[i] == ' ' || copie[i] == '\n' || copie[i] == '\r' || copie[i] == '\t')
+            copie[i] = '\0';
+        else
+            break;
+    }
+
+    return strcmp(copie, "/login") == 0;
+}
+
+// ✅ Nouvelle version propre de l'affichage de la grille
 void afficher_grille_matrix(const char *matrix) {
-    char grille[10][10];
-    int ligne = 0, colonne = 0;
-    int colonnes_ligne = 0;
-    hauteur = 0;
-    largeur = 0;
+    char lignes[10][11];  // max 10 lignes, 10 colonnes + \0
+    int nb_lignes = 0;
+    int nb_colonnes = 0;
 
-    for (int i = 0; i < 10; i++)
-        for (int j = 0; j < 10; j++)
-            grille[i][j] = '_';
+    const char *start = matrix;
+    while (*start && nb_lignes < 10) {
+        const char *slash = strchr(start, '/');
+        int len = (slash ? slash - start : strlen(start));
+        if (len > 10) len = 10;
 
-    for (int i = 0; matrix[i]; i++) {
-        if (matrix[i] == '/') {
-            if (ligne == 0) largeur = colonnes_ligne;
-            ligne++;
-            colonnes_ligne = 0;
-            colonne = 0;
-        } else {
-            if (ligne < 10 && colonne < 10) {
-                char c = matrix[i];
-                if (c != '_' && c != 'x' && c != 'o' && c != 'X' && c != 'O') c = '_';
-                grille[ligne][colonne++] = c;
-                colonnes_ligne++;
-            }
-        }
+        strncpy(lignes[nb_lignes], start, len);
+        lignes[nb_lignes][len] = '\0';
+
+        if (nb_lignes == 0)
+            nb_colonnes = len;
+
+        nb_lignes++;
+
+        if (!slash)
+            break;
+        start = slash + 1;
     }
-
-    if (colonnes_ligne > 0) {
-        if (ligne == 0) largeur = colonnes_ligne;
-        ligne++;
-    }
-
-    hauteur = ligne;
 
     printf("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
-    printf(" Grille de jeu (%dx%d)\n", largeur, hauteur);
+    printf(" Grille de jeu (%dx%d)\n", nb_colonnes, nb_lignes);
     printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n");
 
-    for (int i = hauteur - 1; i >= 0; i--) {
+    for (int i = nb_lignes - 1; i >= 0; i--) {
         printf(" +");
-        for (int j = 0; j < largeur; j++) printf("---+");
+        for (int j = 0; j < nb_colonnes; j++)
+            printf("---+");
         printf("\n |");
-        for (int j = 0; j < largeur; j++) {
-            char c = grille[i][j];
-            if (c == '_') c = ' ';
+        for (int j = 0; j < nb_colonnes; j++) {
+            char c = lignes[i][j];
+            if (c != 'x' && c != 'o' && c != 'X' && c != 'O')
+                c = ' ';
             printf(" %c |", c);
         }
         printf("\n");
     }
 
     printf(" +");
-    for (int j = 0; j < largeur; j++) printf("---+");
+    for (int j = 0; j < nb_colonnes; j++)
+        printf("---+");
     printf("\n  ");
-    for (int j = 0; j < largeur; j++) printf(" %d  ", j);
+    for (int j = 0; j < nb_colonnes; j++)
+        printf(" %d  ", j);
     printf("\n");
 }
 
@@ -151,12 +162,11 @@ int main(int argc, char *argv[]) {
 
             buffer[bytes_received] = '\0';
 
-            // Ne pas afficher /login si pas en mode debug
-            if (!debug_mode && strncmp(buffer, "/login", 6) == 0) continue;
+            if (est_login_seul(buffer) || strlen(buffer) <= 2)
+                continue;
 
-            if (debug_mode) {
+            if (debug_mode)
                 printf("[DEBUG] %s\n", buffer);
-            }
 
             if (strncmp(buffer, "/ret LOGIN:000", 14) == 0) {
                 printf("✅ Connexion acceptée.\n");
@@ -176,13 +186,13 @@ int main(int argc, char *argv[]) {
                 fflush(stdout);
             } else if (strncmp(buffer, "/info END:WIN:", 14) == 0) {
                 char *login_gagnant = strstr(buffer, "WIN:") + 4;
-                printf("🏆 %s a gagné la partie ! Bravo 🎉\n", login_gagnant);
+                printf("\n🏆 %s a gagné la partie ! Bravo 🎉\n", login_gagnant);
                 break;
             } else if (strncmp(buffer, "/info END:DRAW:NONE", 19) == 0) {
                 printf("\n🤝 Match nul ! Personne n’a gagné cette fois.\n");
                 break;
             } else if (debug_mode) {
-                printf("[DEBUG] Message inconnu reçu : %s\n", buffer);
+                printf("[DEBUG] %s\n", buffer);
             }
         }
     }
