@@ -85,17 +85,11 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in server_address;
     char buffer[LG_MESSAGE];
     char temp[LG_MESSAGE];
-    int debug_mode = 0;
     int is_logged_in = 0;
 
     if (argc < 3) {
-        printf("Usage: %s <IP> <port> [--debug]\n", argv[0]);
+        printf("Usage: %s <IP> <port>\n", argv[0]);
         return 1;
-    }
-
-    if (argc > 3 && (strcmp(argv[3], "--debug") == 0 || strcmp(argv[3], "-d") == 0)) {
-        debug_mode = 1;
-        printf("🛠️ Mode debug activé\n");
     }
 
     sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -165,9 +159,6 @@ int main(int argc, char *argv[]) {
             if (est_login_seul(buffer) || strlen(buffer) <= 2)
                 continue;
 
-            if (debug_mode)
-                printf("[DEBUG] %s\n", buffer);
-
             if (strncmp(buffer, "/ret LOGIN:000", 14) == 0) {
                 printf("✅ Connexion acceptée.\n");
                 is_logged_in = 1;
@@ -186,13 +177,11 @@ int main(int argc, char *argv[]) {
                 fflush(stdout);
             } else if (strncmp(buffer, "/info END:WIN:", 14) == 0) {
                 char *login_gagnant = strstr(buffer, "WIN:") + 4;
-                printf("\n🏆 %s a gagné la partie ! Bravo 🎉\n", login_gagnant);
+                printf("🏆 %s a gagné la partie ! Bravo 🎉\n", login_gagnant);
                 break;
             } else if (strncmp(buffer, "/info END:DRAW:NONE", 19) == 0) {
                 printf("\n🤝 Match nul ! Personne n’a gagné cette fois.\n");
                 break;
-            } else if (debug_mode) {
-                printf("[DEBUG] %s\n", buffer);
             }
         }
     }
