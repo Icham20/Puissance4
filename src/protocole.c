@@ -317,7 +317,7 @@ int handle_play(struct user *client, int col, struct user *user_list)
         struct user *tmp = user_list;
         char buffer[256];
         snprintf(buffer, sizeof(buffer), "/info END:WIN:%s\n", client->pseudo);
-        printf("S: 🎉 Victoire de %s (%c)\n", client->pseudo, client->symbole);
+        printf("S: Victoire de %s (%c)\n", client->pseudo, client->symbole);
         while (tmp)
         {
             dprintf(tmp->socket, "%s", buffer);
@@ -328,7 +328,7 @@ int handle_play(struct user *client, int col, struct user *user_list)
     {
         send_matrix_to_all(user_list); // ✅ Affiche la grille finale
         struct user *tmp = user_list;
-        printf("S: ⚖️  Match nul !\n");
+        printf("S: Match nul !\n");
         while (tmp)
         {
             dprintf(tmp->socket, "/info END:DRAW:NONE\n");
@@ -353,7 +353,7 @@ int handle_play(struct user *client, int col, struct user *user_list)
         {
             if (turn->estSonTour)
             {
-                printf("🔁 En attente du joueur %s (%c)...\n", turn->pseudo, turn->symbole);
+                printf("En attente du joueur %s (%c)...\n", turn->pseudo, turn->symbole);
                 printf("S: /play\n");
                 dprintf(turn->socket, "/play\n");
                 break;

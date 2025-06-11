@@ -132,7 +132,7 @@ void supprimer_client(struct user **list, int client_fd)
 
             // Message de log de déconnexion
             char deco_msg[64];
-            snprintf(deco_msg, sizeof(deco_msg), "S: ❌ Joueur %d déconnecté.\n", cur->numero);
+            snprintf(deco_msg, sizeof(deco_msg), "S: Joueur %s déconnecté.\n", cur->pseudo);
             printf("%s", deco_msg);
 
             // Libération mémoire
@@ -150,7 +150,7 @@ void supprimer_client(struct user **list, int client_fd)
 
             if (actifs == 0)
             {
-                printf("S: 🛑 Tous les joueurs sont déconnectés. Fermeture du serveur.\n");
+                printf("S: Tous les joueurs sont déconnectés. Fermeture du serveur.\n");
                 exit(EXIT_SUCCESS);
             }
 
