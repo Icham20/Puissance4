@@ -1,3 +1,4 @@
+// Inclusion des bibliothèques nécessaires
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -5,18 +6,21 @@
 #include "../include/protocole.h"
 #include "../include/grille.h"
 
-// Constantes pour les limites de login et dimensions de la grille
+// Définition des constantes
 #define MIN_LOGIN_LEN 3
 #define MAX_LOGIN_LEN 16
 #define MAX_HAUTEUR 10
 #define MAX_LARGEUR 10
 
-// Définition de la grille et ses dimensions
+// Grille de jeu (globale)
 char grille[MAX_HAUTEUR][MAX_LARGEUR];
 int hauteur = 6;
 int largeur = 7;
 
-// Vérifie si un login existe déjà dans la liste des utilisateurs
+/*
+ Vérifie si un login est déjà utilisé par un autre joueur.
+ Renvoie 1 si le login est présent, 0 sinon.
+ */
 int login_existe(struct user *list, const char *login)
 {
     while (list)
@@ -28,9 +32,13 @@ int login_existe(struct user *list, const char *login)
     return 0;
 }
 
+/*
+ Traite la commande /login d'un client.
+ Vérifie la validité du login, l'unicité, affecte le symbole X/O, et lance la partie si 2 joueurs connectés.
+ */
 int handle_login(struct user *client, const char *login, struct user *user_list)
 {
-    // Vérifie la validité du login
+    // Vérification de la validité du login (taille + pas de ':')
     int len = strlen(login);
     if (len < MIN_LOGIN_LEN || len > MAX_LOGIN_LEN || strchr(login, ':'))
     {
@@ -39,7 +47,7 @@ int handle_login(struct user *client, const char *login, struct user *user_list)
         return 105;
     }
 
-    // Vérifie l’unicité du login
+    // Vérification de l'unicité du login
     if (login_existe(user_list, login))
     {
         printf("S: /ret LOGIN:101\n");
@@ -47,8 +55,7 @@ int handle_login(struct user *client, const char *login, struct user *user_list)
         return 101;
     }
 
-    // Compte les joueurs déjà connectés (login fait), (1er qui repond à /login ==> joueur1 
-    //et 2eme qui repond à /login ==> joueur2)
+    // Comptage des joueurs déjà connectés
     int joueurs_connectes = 0;
     struct user *tmp = user_list;
     while (tmp)
@@ -58,29 +65,21 @@ int handle_login(struct user *client, const char *login, struct user *user_list)
         tmp = tmp->next;
     }
 
-    // Refuse si 2 joueurs ont déjà fait /login
-    if (joueurs_connectes >= 2)
-    {
-        printf("S: /ret LOGIN:106\n");
-        dprintf(client->socket, "/ret LOGIN:106\n");
-        return 106;
-    }
-
-    // Enregistre le pseudo
+    // Enregistrement du pseudo du client
     strncpy(client->pseudo, login, sizeof(client->pseudo) - 1);
     client->pseudo[sizeof(client->pseudo) - 1] = '\0';
 
-    // Affecte le symbole en fonction de l'ordre du login
+    // Attribution du symbole
     if (joueurs_connectes == 0)
-        client->symbole = 'X'; // Premier login
+        client->symbole = 'X'; // Premier joueur
     else
-        client->symbole = 'O'; // Deuxième login
+        client->symbole = 'O'; // Deuxième joueur
 
-    // Confirme login
+    // Réponse positive au client
     printf("S: /ret LOGIN:000\n");
     dprintf(client->socket, "/ret LOGIN:000\n");
 
-    // Renvoie info LOGIN avec numéro et rôle
+    // Envoi d'information complémentaire
     int numero = (client->symbole == 'X') ? 1 : 2;
     char role = (client->symbole == 'X') ? 'x' : 'o';
 
@@ -89,15 +88,20 @@ int handle_login(struct user *client, const char *login, struct user *user_list)
     printf("S: %s", msg);
     dprintf(client->socket, "%s", msg);
 
-    // Vérifie si on peut lancer la partie
+    // Vérification de lancement de la partie (si 2 joueurs connectés)
     verifier_lancement_partie(user_list);
     return 0;
 }
 
-// Vérifie si deux joueurs sont prêts, et lance la partie
+/*
+ Vérifie si 2 joueurs sont prêts.
+ Si oui, initialise la grille, démarre la partie, et envoie /play au joueur 1.
+ */
 void verifier_lancement_partie(struct user *user_list)
 {
     struct user *j1 = NULL, *j2 = NULL, *tmp = user_list;
+
+    // Recherche des 2 premiers joueurs connectés
     while (tmp)
     {
         if (strcmp(tmp->pseudo, "inconnu") != 0)
@@ -113,6 +117,7 @@ void verifier_lancement_partie(struct user *user_list)
         tmp = tmp->next;
     }
 
+    // Si les 2 joueurs sont prêts, on lance la partie
     if (j1 && j2)
     {
         initialiser_grille();
@@ -123,6 +128,7 @@ void verifier_lancement_partie(struct user *user_list)
 
         send_matrix_to_all(user_list);
 
+        // Envoi de /play au joueur dont c'est le tour
         if (j1->estSonTour)
         {
             printf("S: /play\n");
@@ -136,7 +142,9 @@ void verifier_lancement_partie(struct user *user_list)
     }
 }
 
-// Initialise la grille avec des cases vides ('_')
+/*
+ Initialise la grille avec des cases vides ('_').
+ */
 void initialiser_grille()
 {
     for (int i = 0; i < hauteur; i++)
@@ -144,13 +152,16 @@ void initialiser_grille()
             grille[i][j] = '_';
 }
 
-// Envoie l’état actuel de la grille à tous les clients
+/*
+Envoie l'état actuel de la grille à tous les clients.
+La grille est envoyée sous le format /info MATRIX:...
+ */
 void send_matrix_to_all(struct user *user_list)
 {
     char buffer[1024] = "/info MATRIX:";
 
     for (int i = 0; i < hauteur; i++)
-    { // DU BAS VERS LE HAUT
+    {
         for (int j = 0; j < largeur; j++)
         {
             strncat(buffer, &grille[i][j], 1);
@@ -161,8 +172,9 @@ void send_matrix_to_all(struct user *user_list)
 
     strcat(buffer, "\n");
 
-    afficher_grille(); // Affiche la grille côté serveur
+    afficher_grille(); // Affichage côté serveur
 
+    // Envoi à tous les clients
     struct user *tmp = user_list;
     while (tmp)
     {
@@ -171,7 +183,10 @@ void send_matrix_to_all(struct user *user_list)
     }
 }
 
-// Vérifie si la grille est pleine
+/*
+ Vérifie si la grille est pleine (match nul).
+ Retourne 1 si pleine, 0 sinon.
+ */
 int grille_est_pleine()
 {
     for (int i = 0; i < hauteur; i++)
@@ -181,21 +196,23 @@ int grille_est_pleine()
     return 1;
 }
 
-// Vérifie s’il y a une victoire (4 symboles alignés)
-
+/*
+ Vérifie s'il y a une victoire.
+ Cherche 4 symboles alignés (horizontale, verticale, diagonales).
+ Marque les pions gagnants en majuscules.
+ */
 int verifier_victoire(char symbole)
 {
-    // On prépare deux versions du symbole : une minuscule pour les pions normaux, une majuscule pour les gagnants
     char gagnant = toupper(symbole);
     char normal = tolower(symbole);
 
-    // Convertir toute la grille en minuscule avant vérification
+    // Convertit toute la grille en minuscule avant vérification
     for (int i = 0; i < hauteur; i++)
         for (int j = 0; j < largeur; j++)
             if (grille[i][j] == symbole || grille[i][j] == gagnant)
                 grille[i][j] = normal;
 
-    // Horizontal
+    // Recherche horizontale
     for (int i = 0; i < hauteur; i++)
     {
         for (int j = 0; j <= largeur - 4; j++)
@@ -212,7 +229,7 @@ int verifier_victoire(char symbole)
         }
     }
 
-    // Vertical
+    // Recherche verticale
     for (int i = 0; i <= hauteur - 4; i++)
     {
         for (int j = 0; j < largeur; j++)
@@ -229,7 +246,7 @@ int verifier_victoire(char symbole)
         }
     }
 
-    // Diagonale montante
+    // Recherche diagonale montante
     for (int i = 3; i < hauteur; i++)
     {
         for (int j = 0; j <= largeur - 4; j++)
@@ -246,7 +263,7 @@ int verifier_victoire(char symbole)
         }
     }
 
-    // Diagonale descendante
+    // Recherche diagonale descendante
     for (int i = 0; i <= hauteur - 4; i++)
     {
         for (int j = 0; j <= largeur - 4; j++)
@@ -266,9 +283,13 @@ int verifier_victoire(char symbole)
     return 0;
 }
 
-// Gère le coup joué par un client
+/*
+Traite un coup /play d'un joueur.
+Vérifie les erreurs, place le pion, met à jour la grille, vérifie victoire ou match nul, et passe le tour.
+ */
 int handle_play(struct user *client, int col, struct user *user_list)
 {
+    // Vérification que c'est bien le tour du joueur
     if (client->etat != ETAT_JEU || !client->estSonTour)
     {
         printf("S: /ret PLAY:102\n");
@@ -276,6 +297,7 @@ int handle_play(struct user *client, int col, struct user *user_list)
         return 102;
     }
 
+    // Vérification de la validité de la colonne
     if (col < 0 || col >= largeur)
     {
         printf("S: /ret PLAY:103\n");
@@ -283,7 +305,7 @@ int handle_play(struct user *client, int col, struct user *user_list)
         return 103;
     }
 
-    // Trouve la première ligne vide dans la colonne
+    // Recherche de la première case vide dans la colonne
     int ligne = -1;
     for (int i = 0; i < hauteur; i++)
     {
@@ -294,6 +316,7 @@ int handle_play(struct user *client, int col, struct user *user_list)
         }
     }
 
+    // Colonne pleine
     if (ligne == -1)
     {
         printf("S: /ret PLAY:104\n");
@@ -301,18 +324,15 @@ int handle_play(struct user *client, int col, struct user *user_list)
         return 104;
     }
 
-    // Place le symbole du joueur
+    // Placement du pion
     grille[ligne][col] = client->symbole;
     printf("S: /ret PLAY:000\n");
     dprintf(client->socket, "/ret PLAY:000\n");
 
-    // ⛔️ Ne pas envoyer la grille ici (encore sans minuscule)
-    // send_matrix_to_all(user_list);
-
-    // Vérifie s’il y a un gagnant
+    // Vérification victoire
     if (verifier_victoire(client->symbole))
     {
-        send_matrix_to_all(user_list); // ✅ Envoie de la grille modifiée avec minuscules
+        send_matrix_to_all(user_list);
 
         struct user *tmp = user_list;
         char buffer[256];
@@ -324,9 +344,11 @@ int handle_play(struct user *client, int col, struct user *user_list)
             tmp = tmp->next;
         }
     }
+    // Vérification match nul
     else if (grille_est_pleine())
     {
-        send_matrix_to_all(user_list); // ✅ Affiche la grille finale
+        send_matrix_to_all(user_list);
+
         struct user *tmp = user_list;
         printf("S: Match nul !\n");
         while (tmp)
@@ -337,9 +359,10 @@ int handle_play(struct user *client, int col, struct user *user_list)
     }
     else
     {
-        send_matrix_to_all(user_list); // ✅ Affiche la grille normale s'il n'y a pas de fin de partie
+        // Sinon : partie en cours → envoie nouvelle grille et passe le tour
+        send_matrix_to_all(user_list);
 
-        // Passe le tour à l’autre joueur
+        // Passe le tour à l'autre joueur
         struct user *tmp = user_list;
         while (tmp)
         {
@@ -347,7 +370,7 @@ int handle_play(struct user *client, int col, struct user *user_list)
             tmp = tmp->next;
         }
 
-        // Envoie la commande /play au prochain joueur
+        // Envoi /play au prochain joueur
         struct user *turn = user_list;
         while (turn)
         {

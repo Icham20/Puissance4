@@ -49,3 +49,34 @@ nc 192.168.200.13 7500
 | `grille.h`       | Prototype pour `afficher_grille()`                          |
 
 ---
+
+## ✨ Fonctionnalités
+
+- Jeu **Puissance 4** en temps réel entre 2 joueurs via le réseau (TCP)
+- Gestion de la grille côté serveur et envoi de l'état de la grille aux clients
+- Gestion des tours de jeu, détection de victoire, détection de match nul
+- Commandes `/login`, `/play`, `/info MATRIX`, `/info END`, etc.
+- Affichage visuel de la grille dans le terminal (serveur et clients)
+- Gestion des connexions et déconnexions des clients
+- Architecture serveur multi-clients basée sur `poll()`
+
+---
+
+## 📜 Protocole de communication
+
+Le serveur utilise un mini-protocole textuel basé sur des commandes simples :
+
+| Commande envoyée | Description |
+|------------------|-------------|
+| `/login <pseudo>` | Connexion du joueur avec son pseudo |
+| `/play <colonne>` | Joue dans la colonne spécifiée |
+| `/info ID:` | ID du serveur envoyé au client |
+| `/info LOGIN:` | Informations sur la connexion du joueur |
+| `/info MATRIX:` | Grille de jeu envoyée à tous les clients |
+| `/play` | Demande au joueur de jouer |
+| `/info END:WIN:<pseudo>` | Fin de partie : joueur gagnant |
+| `/info END:DRAW:NONE` | Fin de partie : match nul |
+| `/ret LOGIN:...` | Codes de retour pour la commande `/login` |
+| `/ret PLAY:...` | Codes de retour pour la commande `/play` |
+
+---
