@@ -1,63 +1,54 @@
-// Inclusion des bibliothèques standards nécessaires
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <fcntl.h>
-#include <poll.h>
-#include <sys/select.h>
+// ==========================================
+// PROJET PUISSANCE 4 - CLIENT TCP
+// Auteur : Houssam
+// Description : client qui permet de jouer au Puissance 4 en se connectant à un serveur.
+// L'utilisateur tape seulement son pseudo ou une colonne. Le client envoie les commandes au serveur.
+// ==========================================
 
-// Taille maximale des messages échangés
-#define LG_MESSAGE 512
+#include <stdio.h>          // Entrées / sorties
+#include <stdlib.h>         // Fonctions utilitaires
+#include <string.h>         // Manipulations de chaînes
+#include <unistd.h>         // Fonctions UNIX
+#include <arpa/inet.h>      // Gestion des adresses IP
+#include <sys/select.h>     // Pour utiliser select()
 
-// Dimensions par défaut de la grille de jeu
-int hauteur = 6;
-int largeur = 7;
+#define LG_MESSAGE 512      // Taille maximale des messages
 
-/*
-  Fonction d'affichage de la grille de jeu à partir de la matrice envoyée par le serveur.
-  La matrice est transmise sous la forme d'une chaîne de caractères formatée avec des '/' pour séparer les lignes.
-*/
+int hauteur = 6;            // Hauteur par défaut de la grille
+int largeur = 7;            // Largeur par défaut de la grille
+
+// Fonction qui affiche la grille envoyée par le serveur
 void afficher_grille_matrix(const char *matrix) 
 {
-    char lignes[10][11]; // Jusqu'à 10 lignes, 10 colonnes + '\0' pour chaque ligne
+    char lignes[10][11]; 
     int nb_lignes = 0;
     int nb_colonnes = 0;
 
     const char *start = matrix;
-    while (*start && nb_lignes < 10)
+    while (*start && nb_lignes < 10) // On parcourt la chaîne reçue (matrix), ligne par ligne
     {
-        const char *slash = strchr(start, '/'); // Cherche le prochain '/'
-        int len = (slash ? slash - start : strlen(start)); // Longueur de la sous-chaîne avant le slash
-        if (len > 10)
-            len = 10;
+        const char *slash = strchr(start, '/'); // On cherche le prochain '/' qui sépare les lignes
+        int len = (slash ? slash - start : strlen(start));  // On calcule la longueur de la ligne (jusqu'à '/' ou fin de la chaîne)
+        if (len > 10) len = 10;
+        if (len == 0) break; // Si la ligne est vide → on arrête
 
-        if (len == 0) // Ignore les lignes vides
-            break;
+        strncpy(lignes[nb_lignes], start, len); // On copie la ligne dans le tableau lignes[nb_lignes]
+        lignes[nb_lignes][len] = '\0';   // On ajoute le caractère de fin '\0' pour en faire une vraie chaîne C
 
-        strncpy(lignes[nb_lignes], start, len);
-        lignes[nb_lignes][len] = '\0';
+        if (nb_lignes == 0) nb_colonnes = len;  // Si c'est la première ligne → on mémorise le nombre de colonnes
 
-        if (nb_lignes == 0)
-            nb_colonnes = len; // Mémorise le nombre de colonnes à la première ligne
-
-        nb_lignes++;
-
-        if (!slash) // Si on est arrivé à la fin de la chaîne
-            break;
-        start = slash + 1;
-
-        if (*start == '\0') // Si la fin est atteinte
-            break;
+        nb_lignes++; // On passe à la ligne suivante
+        if (!slash) break; // Si on a atteint la fin de la chaîne → on arrête
+        start = slash + 1; // On place le pointeur start juste après le '/'
+        if (*start == '\0') break;  // Si c'est la fin de la chaîne → on arrête
     }
 
-    // Affichage de la grille formatée
+    // Affiche la grille formatée
     printf("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
     printf(" Grille de jeu (%dx%d)\n", nb_colonnes, nb_lignes);
     printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n");
 
-    // Affiche la grille du bas vers le haut (comme dans un vrai Puissance 4)
+    // Affiche les lignes de bas en haut
     for (int i = nb_lignes - 1; i >= 0; i--)
     {
         printf(" +");
@@ -67,7 +58,6 @@ void afficher_grille_matrix(const char *matrix)
         for (int j = 0; j < nb_colonnes; j++)
         {
             char c = lignes[i][j];
-            // Vérifie que le caractère est valide, sinon espace vide
             if (c != 'x' && c != 'o' && c != 'X' && c != 'O')
                 c = ' ';
             printf(" %c |", c);
@@ -75,7 +65,7 @@ void afficher_grille_matrix(const char *matrix)
         printf("\n");
     }
 
-    // Ligne inférieure avec les numéros de colonnes
+    // Affiche les numéros de colonnes
     printf(" +");
     for (int j = 0; j < nb_colonnes; j++)
         printf("---+");
@@ -85,25 +75,22 @@ void afficher_grille_matrix(const char *matrix)
     printf("\n");
 }
 
-/**
- * Fonction principale du client Puissance 4
- */
 int main(int argc, char *argv[])
 {
-    int sock; // Descripteur de socket
-    struct sockaddr_in server_address; // Adresse du serveur
-    char buffer[LG_MESSAGE]; // Buffer de réception/envoi
-    char temp[LG_MESSAGE]; // Buffer temporaire pour formater les commandes
-    int is_logged_in = 0; // Indicateur de connexion réussie
+    int sock;
+    struct sockaddr_in server_address;
+    char buffer[LG_MESSAGE];
+    char temp[LG_MESSAGE];
+    int is_logged_in = 0; // 0 = pas encore connecté (pas encore envoyé de /login)
 
-    // Vérifie les arguments : l'utilisateur doit fournir l'IP et le port
+    // Vérifie que l'utilisateur a bien donné l'IP et le port
     if (argc < 3)
     {
         printf("Usage: %s <IP> <port>\n", argv[0]);
         return 1;
     }
 
-    // Création de la socket TCP
+    // Crée une socket TCP
     sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0)
     {
@@ -111,33 +98,31 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // Préparation de l'adresse du serveur
+    // Prépare l'adresse du serveur
     server_address.sin_family = AF_INET;
     server_address.sin_port = htons(atoi(argv[2]));
     inet_pton(AF_INET, argv[1], &server_address.sin_addr);
 
-    // Connexion au serveur
+    // Se connecte au serveur
     if (connect(sock, (struct sockaddr *)&server_address, sizeof(server_address)) < 0)
     {
         perror("connect");
         return 1;
     }
 
-    // Message de confirmation de connexion
     printf("Puissance 4 - Client connecté au serveur\n");
     printf("Connecté au serveur [%s:%s]\n", argv[1], argv[2]);
 
-    // Préparation du set de descripteurs pour la fonction select()
-    fd_set readfds;
+    fd_set readfds; // Liste des choses à surveiller : clavier et serveur
 
-    // Boucle principale du client
+    // Boucle principale
     while (1)
     {
-        FD_ZERO(&readfds); // Réinitialisation du set
-        FD_SET(STDIN_FILENO, &readfds); // Ajoute l'entrée standard (clavier)
-        FD_SET(sock, &readfds); // Ajoute la socket réseau
+        FD_ZERO(&readfds);                    // Vide la liste
+        FD_SET(STDIN_FILENO, &readfds);       // Surveille le clavier
+        FD_SET(sock, &readfds);               // Surveille les messages du serveur
 
-        // Attente d'une activité sur l'un des descripteurs
+        // Attend une activité (clavier ou serveur)
         if (select(sock + 1, &readfds, NULL, NULL, NULL) < 0)
         {
             perror("select");
@@ -149,18 +134,24 @@ int main(int argc, char *argv[])
         {
             memset(buffer, 0, sizeof(buffer));
             fgets(buffer, sizeof(buffer), stdin);
-            buffer[strcspn(buffer, "\n")] = '\0'; // Retire le \n final
+            buffer[strcspn(buffer, "\n")] = '\0'; // Enlève le \n final
 
-            // Si l'utilisateur n'est pas encore connecté, on envoie la commande /login
+            // Si l'utilisateur tape une commande → interdit
+            if (buffer[0] == '/')
+            {
+                continue;
+            }
+
+            // Si on n'est pas encore connecté → on envoie au serveur un /login avec le pseudo
             if (!is_logged_in)
             {
                 snprintf(temp, sizeof(temp), "/login %.500s\n", buffer);
                 strncpy(buffer, temp, sizeof(buffer));
             }
-            // Sinon, on envoie une commande /play avec la colonne choisie
+            // Si on est connecté → on envoie au serveur un /play avec la colonne
             else
             {
-                int col = atoi(buffer);
+                int col = atoi(buffer); // Convertit en entier
                 if (col >= 0 && col < largeur)
                 {
                     snprintf(temp, sizeof(temp), "/play %d\n", col);
@@ -168,15 +159,14 @@ int main(int argc, char *argv[])
                 }
                 else
                 {
-                    // Gestion d'erreur : colonne invalide
-                    printf("==> Colonne invalide. Choisissez entre 0 et %d.\n", largeur - 1);
-                    printf("> ");
+                    // Colonne invalide → on demande une autre colonne
+                    printf("colonne invalide. entrez une autre colonne : ");
                     fflush(stdout);
                     continue;
                 }
             }
 
-            // Envoi de la commande au serveur
+            // Envoie la commande au serveur
             write(sock, buffer, strlen(buffer));
         }
 
@@ -187,80 +177,97 @@ int main(int argc, char *argv[])
             int bytes_received = read(sock, buffer, sizeof(buffer) - 1);
             if (bytes_received <= 0)
             {
-                // Si la connexion est fermée
                 printf("==> Déconnecté du serveur.\n");
                 break;
             }
 
-            buffer[bytes_received] = '\0';
+            buffer[bytes_received] = '\0'; // On termine la chaîne avec '\0' pour pouvoir la traiter comme du texte
+            char *line = strtok(buffer, "\n"); // Découpe en lignes
 
-            // Traitement des messages ligne par ligne
-            char *line = strtok(buffer, "\n");
-            while (line != NULL)
+            while (line != NULL) // On parcourt toutes les lignes du message reçu du serveur
             {
-                // Ignore les lignes très courtes
-                if (strlen(line) <= 2)
+                if (strlen(line) <= 2)  // Si la ligne est vide ou trop courte, on l'ignore et on passe à la suivante
                 {
-                    line = strtok(NULL, "\n");
+                    line = strtok(NULL, "\n"); // Passe à la ligne suivante
                     continue;
                 }
 
-                // Traitement des différentes réponses du serveur
+                // Si le serveur nous dit que la connexion est OK
                 if (strncmp(line, "/ret LOGIN:000", 14) == 0)
                 {
                     printf("==> Connexion acceptée.\n");
                     is_logged_in = 1;
                 }
+                // Si le pseudo est déjà utilisé
                 else if (strncmp(line, "/ret LOGIN:101", 14) == 0)
                 {
                     printf("==> Pseudo déjà utilisé. Choisissez-en un autre.\n> ");
                 }
+                // Si le pseudo est invalide
                 else if (strncmp(line, "/ret LOGIN:105", 14) == 0)
                 {
                     printf("==> Pseudo invalide (3-16 caractères, sans ':').\n> ");
                 }
+                // Si le coup est valide
+                else if (strncmp(line, "/ret PLAY:000", 13) == 0)
+                {
+                    // Rien à afficher
+                }
+                // Si ce n'est pas notre tour
+                else if (strncmp(line, "/ret PLAY:102", 13) == 0)
+                {
+                    printf("Ce n'est pas votre tour. Attendez votre tour.\n");
+                }
+                // Si la colonne n'existe pas
+                else if (strncmp(line, "/ret PLAY:103", 13) == 0)
+                {
+                    printf("colonne invalide. entrez une autre colonne : ");
+                    fflush(stdout);
+                }
+                // Si la colonne est pleine
+                else if (strncmp(line, "/ret PLAY:104", 13) == 0)
+                {
+                    printf("La colonne est pleine. Entrez une autre colonne : ");
+                    fflush(stdout);
+                }
+                // Si le serveur nous donne notre ID
                 else if (strncmp(line, "/info ID:", 9) == 0)
                 {
                     printf("Identifiant serveur : %s\n", strchr(line, ':') + 1);
                     printf("Entrez votre pseudo : ");
                     fflush(stdout);
                 }
-                else if (strncmp(line, "/login", 6) == 0)
-                {
-                    // On ignore l'affichage de /login
-                }
+                // Si le serveur nous envoie la grille à afficher
                 else if (strncmp(line, "/info MATRIX:", 13) == 0)
                 {
-                    // Affiche la grille reçue
                     afficher_grille_matrix(strchr(line, ':') + 1);
                 }
+                // Si c'est notre tour de jouer
                 else if (strncmp(line, "/play", 5) == 0)
                 {
-                    // Invite à jouer
-                    printf("==> C’est votre tour ! Entrez une colonne (0 à %d) : ", largeur - 1);
+                    printf("==> C’est votre tour ! Entrez une colonne : ");
                     fflush(stdout);
                 }
+                // Si un joueur a gagné
                 else if (strncmp(line, "/info END:WIN:", 14) == 0)
                 {
-                    // Partie gagnée
                     char *login_gagnant = strstr(line, "WIN:") + 4;
                     printf("==> %s a gagné la partie ! Bravo !\n", login_gagnant);
                     break;
                 }
+                // Si égalité
                 else if (strncmp(line, "/info END:DRAW:NONE", 19) == 0)
                 {
-                    // Match nul
                     printf("==> Match nul ! Personne n’a gagné cette fois.\n");
                     break;
                 }
 
-                // Passage à la ligne suivante
                 line = strtok(NULL, "\n");
             }
         }
     }
 
-    // Fermeture de la socket
+    // Ferme la connexion
     close(sock);
     return 0;
 }

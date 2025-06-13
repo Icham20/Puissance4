@@ -1,0 +1,8 @@
+*.o
+*.out
+*.exe
+test
+*.log
+*.swp
+*~
+build/
